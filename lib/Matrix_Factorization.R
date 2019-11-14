@@ -14,14 +14,18 @@ gradesc <- function(f = 10,
                     data, train, test){
   set.seed(0)
   #random assign value to matrix p and q
+  num_bins <- max(data$bin_label)
   p <- matrix(runif(f*U, -1, 1), ncol = U) 
   colnames(p) <- as.character(1:U)
   q <- matrix(runif(f*I, -1, 1), ncol = I)
   colnames(q) <- levels(as.factor(data$movieId))
-  
+  mu <- runif(1,-1,1)
+  b_user <- matrix(runif(U,-1,1),ncol=1)
+  b_movie <- matrix(runif(I,-1,1),ncol=1)
+  b_bin <- matrix(runif(I*num_bins,-1,1),ncol=I)    
   train_RMSE <- c()
   test_RMSE <- c()
-  
+  dim(b_bin)
   for(l in 1:max.iter){
     sample_idx <- sample(1:nrow(train), nrow(train))
     #loop through each training case and perform update
@@ -30,10 +34,14 @@ gradesc <- function(f = 10,
       u <- as.character(train[s,1])
       
       i <- as.character(train[s,2])
+      i
+      t <- train[s,5]
       
       r_ui <- train[s,3]
       
-      e_ui <- r_ui - t(q[,i]) %*% p[,u]
+      r_uit_hat <- mu + b_user[u] + b_movie[i] + b_bin[t,as.numeric(i)] + t(q[,i]) %*% p[,u]
+      
+      e_ui <- r_ui - r_uit_hat
       
       grad_q <- e_ui %*% p[,u] - lambda * q[,i]
       
@@ -45,6 +53,32 @@ gradesc <- function(f = 10,
       if (all(abs(grad_p) > stopping.deriv, na.rm = T)){
         p[,u] <- p[,u] + lrate * grad_p
       }
+      
+      grad_mu <- e_ui - lambda * mu
+      
+      if (all(abs(grad_mu) > stopping.deriv, na.rm = T)){
+        mu <- mu + lrate * grad_mu
+      }
+      
+      grad_b_user <- e_ui - lambda * b_user[u]
+      
+      if (all(abs(grad_b_user) > stopping.deriv, na.rm = T)){
+        b_user[u] <- b_user[u] + lrate * grad_b_user
+      }
+      
+      grad_b_movie <- e_ui - lambda * b_movie[i]
+      
+      if (all(abs(grad_b_movie) > stopping.deriv, na.rm = T)){
+        b_movie[i] <- b_movie[i] + lrate * grad_b_movie
+      }
+
+      
+      grad_b_bin <- e_ui - lambda * b_bin[t,as.numeric(i)]
+      
+      if (all(abs(grad_b_bin) > stopping.deriv, na.rm = T)){
+        b_bin[t,as.numeric(i)] <- b_bin[t,as.numeric(i)] + lrate * grad_b_bin
+      }      
+      
     }
     #print the values of training and testing RMSE
     if (l %% 10 == 0){
@@ -62,5 +96,6 @@ gradesc <- function(f = 10,
     } 
   }
   
-  return(list(p = p, q = q, train_RMSE = train_RMSE, test_RMSE = test_RMSE))
+  return(list(p = p, q = q, mu=mu, b_user=b_user, b_movie=b_movie, b_bin=b_bin,
+              train_RMSE = train_RMSE, test_RMSE = test_RMSE))
 }
