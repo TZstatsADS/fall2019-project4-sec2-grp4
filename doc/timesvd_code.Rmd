@@ -84,6 +84,13 @@ l_list <- seq(-2, -1, 1)
 f_l <- expand.grid(f_list, l_list)
 ```
 
+```{r}
+source("../lib/Matrix_Factorization.R")
+result <- gradesc(f = 10, lambda =0.01,
+                  lrate = 0.01, max.iter = 30, stopping.deriv = 0.01,
+                  data = data_bins, train = data_train, test = data_test)
+```
+
 ```{r, eval=FALSE}
 result_summary <- array(NA, dim = c(nrow(f_l), 10, 4)) 
 run_time <- system.time(for(i in 1:nrow(f_l)){
