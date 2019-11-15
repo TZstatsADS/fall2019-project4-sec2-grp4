@@ -22,10 +22,10 @@ gradesc <- function(f = 10,
   mu <- runif(1,-1,1)
   b_user <- matrix(runif(U,-1,1),ncol=1)
   b_movie <- matrix(runif(I,-1,1),ncol=1)
-  b_bin <- matrix(runif(I*num_bins,-1,1),ncol=I)    
+  b_bin <- matrix(runif(I*num_bins,-1,1),ncol=I) 
+  colnames(b_bin) <- levels(as.factor(data$movieId))
   train_RMSE <- c()
   test_RMSE <- c()
-  dim(b_bin)
   for(l in 1:max.iter){
     sample_idx <- sample(1:nrow(train), nrow(train))
     #loop through each training case and perform update
@@ -34,12 +34,12 @@ gradesc <- function(f = 10,
       u <- as.character(train[s,1])
       
       i <- as.character(train[s,2])
-      i
+      
       t <- train[s,5]
       
       r_ui <- train[s,3]
       
-      r_uit_hat <- mu + b_user[u] + b_movie[i] + b_bin[t,as.numeric(i)] + t(q[,i]) %*% p[,u]
+      r_uit_hat <- mu + b_user[u] + b_movie[i] + b_bin[t,i] + t(q[,i]) %*% p[,u]
       
       e_ui <- r_ui - r_uit_hat
       
@@ -73,10 +73,10 @@ gradesc <- function(f = 10,
       }
 
       
-      grad_b_bin <- e_ui - lambda * b_bin[t,as.numeric(i)]
+      grad_b_bin <- e_ui - lambda * b_bin[t,i]
       
       if (all(abs(grad_b_bin) > stopping.deriv, na.rm = T)){
-        b_bin[t,as.numeric(i)] <- b_bin[t,as.numeric(i)] + lrate * grad_b_bin
+        b_bin[t,i] <- b_bin[t,i] + lrate * grad_b_bin
       }      
       
     }
