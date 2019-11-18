@@ -79,8 +79,8 @@ source("../lib/Matrix_Factorization.R")
 Here you should tune parameters, such as the dimension of factor and the penalty parameter $\lambda$ by cross-validation.
 ```{r}
 source("../lib/cross_validation.R")
-f_list <- seq(2, 10, 2)
-l_list <- seq(-3,0,1)
+f_list <- c(10, 20, 50, 100, 200)
+l_list <- seq(-3,2,1)
 f_l <- expand.grid(f_list, l_list)
 ```
 
@@ -134,10 +134,17 @@ P3:[Postprocessing SVD with kernel ridge regression](./paper/P2 Improving regula
 P4:[Linearly combination of predictors](./paper/P4 Large-scale Parallel Collaborative Filtering for the Netflix Prize.pdf) Section 4.1
 
 ```{r, eval= FALSE}
-result <- gradesc(f = 10, lambda = 0.01,lrate = 0.01, max.iter = 100, stopping.deriv = 0.01,
+result <- gradesc(f = 100, lambda = 0.01,lrate = 0.01, max.iter = 100, stopping.deriv = 0.01,
                    data = data_bins, train = data_train, test = data_test)
 
 save(result, file = "../output/mat_fac.RData")
+write.csv(result$p, file = "../output/p.csv")
+write.csv(result$q, file = "../output/q.csv")
+write.csv(result$b_user, file = "../output/b_user.csv")
+write.csv(result$b_movie, file = "../output/b_movie.csv")
+write.csv(result$b_bin, file = "../output/b_bin.csv")
+write.csv(result$mu, file = "../output/mu.csv")
+
 ```
 
 ```{r}

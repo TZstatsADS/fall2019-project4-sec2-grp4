@@ -101,8 +101,7 @@ gradesc <- function(f = 10,
       )
       for (bin in 1:num_bins){
         est_rating[,,bin] <- matrix(mu,nrow=U,ncol=I) + matrix(rep(b_user,I),ncol=I) +
-          matrix(rep(b_movie,U),nrow=U) + matrix(rep(b_bin[bin,],U),nrow=U) +
-          + t(t(q) %*% p)
+          matrix(rep(b_movie,U),nrow=U,byrow=T) + matrix(rep(b_bin[bin,],U),nrow=U,byrow=T) + t(p) %*% q
       }
       
       train_RMSE_cur <- RMSE(train, est_rating)
