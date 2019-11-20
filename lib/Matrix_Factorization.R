@@ -38,7 +38,7 @@ gradesc <- function(f = 10,
   train_RMSE <- c()
   test_RMSE <- c()
   for(l in 1:max.iter){
-    sample_idx <- sample(1:nrow(train), nrow(train)/3)
+    sample_idx <- sample(1:nrow(train), nrow(train))
     #loop through each training case and perform update
     for (s in sample_idx){
       #cat("mu:", mu, "\n")
@@ -101,8 +101,7 @@ gradesc <- function(f = 10,
       )
       for (bin in 1:num_bins){
         est_rating[,,bin] <- matrix(mu,nrow=U,ncol=I) + matrix(rep(b_user,I),ncol=I) +
-          matrix(rep(b_movie,U),nrow=U) + matrix(rep(b_bin[bin,],U),nrow=U) +
-          + t(t(q) %*% p)
+          matrix(rep(b_movie,U),nrow=U,byrow=T) + matrix(rep(b_bin[bin,],U),nrow=U,byrow=T) + t(p) %*% q
       }
       
       train_RMSE_cur <- RMSE(train, est_rating)

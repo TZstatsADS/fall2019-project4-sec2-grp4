@@ -79,25 +79,9 @@ source("../lib/Matrix_Factorization.R")
 Here you should tune parameters, such as the dimension of factor and the penalty parameter $\lambda$ by cross-validation.
 ```{r}
 source("../lib/cross_validation.R")
-f_list <- seq(2, 10, 2)
-l_list <- seq(-3,0,1)
+f_list <- c(10, 20, 50)
+l_list <- seq(-3,-1,1)
 f_l <- expand.grid(f_list, l_list)
-```
-
-```{r}
-source("../lib/Matrix_Factorization.R")
-n <- length(f_list)*length(l_list)
-result_mat <- matrix(NA, n,2)
-for (i in 1:n){
-  result <- gradesc(f = f_l[i,1], lambda =10^f_l[i,2],
-                  lrate = 0.01, max.iter = 50, stopping.deriv = 0.01,
-                  data = data_bins, train = data_train, test = data_test)
-  result_mat[i,1] <- min(result$train_RMSE)
-  result_mat[i,2] <- min(result$test_RMSE)
-  cat("iter: ", i," test: ",result_mat[i,], "\n")
-}
-result_mat <- as.data.frame(result_mat)
-results <- cbind(result_mat, f_l)
 ```
 
 ```{r, eval=FALSE}
@@ -116,7 +100,7 @@ save(result_summary, file = "../output/rmse.Rdata")
 
 ```{r}
 load("../output/rmse.Rdata")
-rmse <- data.frame(rbind(t(result_summary[1,,]), t(result_summary[2,,])), train_test = rep(c("Train", "Test"), each = 4), par = rep(paste("f = ", f_l[,1], ", lambda = ", 10^f_l[,2]), times = 2)) %>% gather("epoch", "RMSE", -train_test, -par)
+rmse <- data.frame(rbind(t(result_summary[1,,]), t(result_summary[2,,])), train_test = rep(c("Train", "Test"), each = 9), par = rep(paste("f = ", f_l[,1], ", lambda = ", 10^f_l[,2]), times = 2)) %>% gather("epoch", "RMSE", -train_test, -par)
 rmse$epoch <- as.numeric(gsub("X", "", rmse$epoch))
 rmse %>% ggplot(aes(x = epoch, y = RMSE, col = train_test)) + geom_point() + facet_grid(~par)
 ```
@@ -134,10 +118,17 @@ P3:[Postprocessing SVD with kernel ridge regression](./paper/P2 Improving regula
 P4:[Linearly combination of predictors](./paper/P4 Large-scale Parallel Collaborative Filtering for the Netflix Prize.pdf) Section 4.1
 
 ```{r, eval= FALSE}
-result <- gradesc(f = 10, lambda = 0.01,lrate = 0.01, max.iter = 100, stopping.deriv = 0.01,
+result <- gradesc(f = 10, lambda = 0.1,lrate = 0.01, max.iter = 100, stopping.deriv = 0.01,
                    data = data_bins, train = data_train, test = data_test)
 
 save(result, file = "../output/mat_fac.RData")
+write.csv(result$p, file = "../output/p.csv")
+write.csv(result$q, file = "../output/q.csv")
+write.csv(result$b_user, file = "../output/b_user.csv")
+write.csv(result$b_movie, file = "../output/b_movie.csv")
+write.csv(result$b_bin, file = "../output/b_bin.csv")
+write.csv(result$mu, file = "../output/mu.csv")
+
 ```
 
 ```{r}
