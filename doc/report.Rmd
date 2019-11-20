@@ -1,20 +1,21 @@
 ---
-title: "Project4 Report"
+title: "Project 4 Report"
+author: "Xudong Guo, Sixing Hao, Chang Qu, Samuel Unger, Chen Wang"
 output:
   pdf_document: default
   html_document:
     df_print: paged
 ---
 
-In this project, you are going to explore matrix factorization methods for recommender system. The goal is to match consumers with most appropriate products. Matrix factorization methods characterize both items and users by vectors of factors inferred from item rating patterns. High correspondence between item and user factors leads to a recommendation. Matrix factorization generally has 3 parts:
+In this project, we applied the following methods for collaborative filtering:
 
-- factorization algorithm
+- factorization algorithm: Stochastic Gradient Descent
 
-- regularization
+- regularization: Temporal Dynamics
 
-- postpocessing
+- postpocessing: KNN & Kernel Ridge Regression
 
-It is highly recommended to read this [review paper](./paper/P1 Recommender-Systems.pdf).
+Our objective is to compare the postporcessing process, and evaluate their results.
 
 ### Step 1 Load Data and Train-test Split
 ```{r message=FALSE}
@@ -25,6 +26,8 @@ library(anytime)
 library(ggplot2)
 data <- read.csv("../data/ml-latest-small/ratings.csv")
 set.seed(0)
+
+# Function for dividing time into bins, and add bins to the original data 
 
 bins <- function(nbin, data=data){
   data$time <- anytime(data$timestamp) %>% format("%Y/%m/%d")
@@ -38,9 +41,9 @@ bins <- function(nbin, data=data){
   return(bin)
 }
 
+# Bin size is suggested by Koren, author of the paper on Temporal Dynamics
+
 data_bins <- bins(30, data=data) 
-
-
 test_idx <- sample(1:nrow(data), round(nrow(data)/5, 0))
 train_idx <- setdiff(1:nrow(data), test_idx)
 data_train <- data_bins[train_idx,]
@@ -51,14 +54,9 @@ data_test <- data_bins[test_idx,]
 
 #### Step 2.1 Algorithm and Regularization
 
-- For algorithms, the referenced paper are:
+- Algorithm: Stochastic Gradient Descent (A1)
 
-A1. [Stochastic Gradient Descent](./paper/P1 Recommender-Systems.pdf) Section: Learning Algorithms-Stochastic Gradient Descent
-
-- For regularizations, the referenced paper are:
-
-R3. [Temporal Dynamics](./paper/P5 Collaborative Filtering with Temporal Dynamics.pdf) Section 4
-
+- Regularizations: Temporal Dynamics (R3)
 
 ```{r}
 U <- length(unique(data_bins$userId))
@@ -69,7 +67,7 @@ source("../lib/Matrix_Factorization.R")
 
 #### Step 2.2 Parameter Tuning
 
-Here you should tune parameters, such as the dimension of factor and the penalty parameter $\lambda$ by cross-validation.
+We used cross validation to tune the 2 hyperparameters: f and lambda, and select the optimal combination by choosing the one with lowest test RMSE
 
 ```{r}
 source("../lib/cross_validation.R")
@@ -94,18 +92,24 @@ save(result_summary, file = "../output/rmse.Rdata")
 
 ```{r}
 load("../output/rmse.Rdata")
+
 rmse <- data.frame(rbind(t(result_summary[1,,]), t(result_summary[2,,])), 
                    train_test = rep(c("Train", "Test"), each = 9), 
-                   par = rep(paste("f = ", f_l[,1], ", lambda = ", 10^f_l[,2]), times = 2)) %>%           gather("epoch", "RMSE", -train_test, -par)
+                   par = rep(paste("f = ", f_l[,1], ", lambda = ", 10^f_l[,2]), times = 2)) %>%
+  gather("epoch", "RMSE", -train_test, -par)
+
 rmse$epoch <- as.numeric(gsub("X", "", rmse$epoch))
+
 cv.result <- ggplot(rmse, aes(x = epoch, y = RMSE, col = train_test)) + geom_point() + 
-  facet_grid(~par)
+  facet_grid(~par)+ggtitle("RMSE of Tuning")
 ggsave(plot=cv.result, filename = "cv_result.jpg",height = 100, width = 400, units="mm")
 ```
 
-![RMSE of Tuning](./cv_result.jpg)
+![RMSE of Tuning](./cv_result.jpg)[CV]
 
-```{r}
+Here is the train and test RMSE for selected set of hyper parameters
+
+```{r message=F}
 load(file = "../output/mat_fac.RData")
 
 RMSE <- data.frame(epochs = seq(10, 100, 10), 
@@ -120,6 +124,7 @@ ggplot(RMSE, aes(x = epochs, y = RMSE,col = train_or_test)) +
 ```
 
 ### Step 3 Postprocessing
+
 After matrix factorization, postporcessing will be performed to improve accuracy.
 The referenced papers are:
 
@@ -138,7 +143,6 @@ write.csv(result$b_user, file = "../output/b_user.csv")
 write.csv(result$b_movie, file = "../output/b_movie.csv")
 write.csv(result$b_bin, file = "../output/b_bin.csv")
 write.csv(result$mu, file = "../output/mu.csv")
-
 ```
 
 
