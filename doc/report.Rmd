@@ -141,6 +141,239 @@ write.csv(result$mu, file = "../output/mu.csv")
 
 ```
 
+#### Postprocessing SVD with KNN
+
+```{python, eval=FALSE}
+# import neccessary library
+
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import LinearRegression
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from itertools import chain
+import math
+import nbconvert
+
+```
+
+```{python, eval=FALSE}
+# import dataset
+q = pd.read_csv('../output/q.csv')
+q.drop(['Unnamed: 0'], axis = 1, inplace=True)
+
+# convert dataframe into a matrix
+q_mat = q.to_numpy()
+q_mat = np.transpose(q_mat)
+
+# calculate mean rating for each movie
+rating = pd.read_csv('../data/ml-latest-small/ratings.csv')
+rating = rating[['movieId','rating']]
+y = rating.groupby(['movieId']).mean()
+
+````
+
+Next, we will use Grid search cross validation to choose the optimal K
+
+```{python, eval =FALSE}
+# create a KNN regression model
+knn_model = KNeighborsRegressor(metric = 'cosine', algorithm='brute')
+
+# define parameters
+param_grid = {'n_neighbors': np.arange(60, 100)}
+
+# create grid search CV
+knn_gscv = GridSearchCV(knn_model, param_grid, cv=5, scoring = 'neg_mean_squared_error')
+
+# fit to our data
+knn_gscv.fit(q_mat, y)
+
+# the best knn parameter
+knn_gscv.best_params_
+
+# RMSE of our KNN model
+math.sqrt(-1*knn_gscv.best_score_)
+```
+
+After searching, we found that when K=96, it will give us the smallest RMSE, which is $0.872$. We want to visualize the result of cross validation.
+
+```{python, eval=FALSE}
+# get RMSE for each K 
+all_rmse = np.sqrt(-1*knn_gscv.cv_results_['mean_test_score'])
+k = range(60,100)
+
+# visualize RMSE w.r.t K
+plt.plot(k, all_rmse)
+plt.xlabel('K')
+plt.ylabel('RMSE')
+
+```
+
+![](../figs/knn.png)
+
+We see that RMSE is the smallest when $K=96$.
+
+Now we want to combine all the component we had so far, including $p_i^Tq_i$, $b_i$, $b_u$, $b_{i,Bin(t)}$, and $KNN$, to construct a linear regression function to make predictions for the ratings.
+
+```{python, eval=FALSE}
+# import data
+p = pd.read_csv('../output/p.csv')
+b_user = pd.read_csv('../output/b_user.csv')
+b_movie = pd.read_csv('../output/b_movie.csv')
+mu = pd.read_csv('../output/mu.csv')
+b_bin = pd.read_csv('../output/b_bin.csv')
+
+# clean data
+p.drop(['Unnamed: 0'], axis = 1, inplace=True)
+b_user.drop(['Unnamed: 0'], axis = 1, inplace=True)
+b_movie.drop(['Unnamed: 0'], axis = 1, inplace=True)
+b_bin.drop(['Unnamed: 0'], axis = 1, inplace=True)
+
+# convert into matrix
+p_mat = p.to_numpy()
+b_user_mat = b_user.to_numpy()
+b_movie_mat = b_movie.to_numpy()
+b_bin_mat = b_bin.to_numpy()
+
+# comput interaction matrix
+interaction = np.matmul(q_mat, p_mat)
+```
+
+In our case, our data has three dimension, which are 9724 movies, 610 users, and 30 bins, we want to flatten each component into a $(9724*610*30)*1$ column vector in order to constrcut the linear regression function.
+
+```{python, eval=FALSE}
+# flatten interaction matrix
+inter_flat = []
+
+for col in range(interaction.shape[1]):
+    inter_flat.append(interaction[:,col].tolist())
+    
+li = list(chain.from_iterable(inter_flat))
+
+# repeat for 30 times
+inter_flat_time = []
+for i in range(30):
+    for ele in li:
+        inter_flat_time.append(ele)
+
+```
+
+```{python, eval=FALSE}
+
+# repear b_user for every movie
+b_user_flat = []
+for ele in b_user_mat.tolist():
+    for i in range(9724):
+        b_user_flat.append(ele)
+        
+b_user_flat = list(chain.from_iterable(b_user_flat))
+
+# repeat for 30 times
+b_user_flat_time = []
+for i in range(30):
+    for ele in b_user_flat:
+        b_user_flat_time.append(ele)
+        
+```
+
+
+```{python, eval=FALSE}
+# repear b_movie for every user
+b_movie_flat = []
+for i in range(610):
+    b_movie_flat.append(b_movie_mat[:,0].tolist())
+        
+b_movie_flat = list(chain.from_iterable(b_movie_flat))
+
+# repeat for 30 times
+b_movie_flat_time = []
+for i in range(30):
+    for ele in b_movie_flat:
+        b_movie_flat_time.append(ele)
+
+```
+
+```{python, eval=FALSE}
+# repear KNN for every user
+rating_pred_flat = []
+for i in range(610):
+    rating_pred_flat.append(rating_pred[:,0].tolist())
+        
+rating_pred_flat = list(chain.from_iterable(rating_pred_flat))
+
+# repeat for 30 times
+rating_pred_flat_time = []
+for i in range(30):
+    for ele in rating_pred_flat:
+        rating_pred_flat_time.append(ele)
+
+```
+
+```{python, eval=FALSE}
+# flatten b_bin for 30 bins
+b_bin_mat = np.transpose(b_bin_mat)
+b_bin_flat = []
+
+for col in range(30):
+    for i in range(610):
+        b_bin_flat.append(b_bin_mat[:,col].tolist())
+
+b_bin_flat = list(chain.from_iterable(b_bin_flat))
+
+```
+
+```{python, eval=FALSE}
+# calcualte y vec for linear regression
+y_mat = y.to_numpy()
+y_flat = []
+for i in range(610):
+    y_flat.append(y_mat[:,0].tolist())
+        
+y_flat = list(chain.from_iterable(y_flat))
+
+# repeat for 30 times
+y_flat_time = []
+for i in range(30):
+    for ele in y_flat:
+        y_flat_time.append(ele)
+
+```
+
+```{python, eval=FALSE}
+# combine all component into X matrix 
+inter_df = pd.DataFrame(inter_flat_time, columns = ['Interaction'])
+b_user_df =  pd.DataFrame(b_user_flat_time, columns = ['b_user'])
+b_movie_df =  pd.DataFrame(b_movie_flat_time, columns = ['b_movie'])
+b_bin_df =  pd.DataFrame(b_bin_flat, columns = ['b_bin'])
+knn_df =  pd.DataFrame(rating_pred_flat_time, columns = ['KNN'])
+
+X = pd.concat([inter_df, b_user_df, b_movie_df, b_bin_df, knn_df], axis = 1, sort=False)
+
+```
+
+```{python, eval=FALSE}
+# fit linear regression
+reg = LinearRegression().fit(X,y_flat_time)
+
+# get parameters of the linear regression
+reg.get_params(deep = True)
+
+# make predictions
+y_pred = reg.predict(X)
+
+```
+
+```{python, eval=FALSE}
+# compute MSE
+mse = (((y_pred - np.array(y_flat_time ))**2).sum()) / len(y_flat_time)
+
+# compute RMSE
+RMSE = math.sqrt(mse)
+RMSE
+```
+
+In the end, we got $RMSE$ of $0.701$, which is a huge improvement from the one without the post-processing.
 
 ### Step 4 Evaluation
 You should visualize training and testing RMSE by different dimension of factors and epochs ([One Epoch is when an ENTIRE dataset is passed forward and backward through the neural network only ONCE](https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9)). 
