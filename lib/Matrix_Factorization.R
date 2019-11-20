@@ -38,7 +38,7 @@ gradesc <- function(f = 10,
   train_RMSE <- c()
   test_RMSE <- c()
   for(l in 1:max.iter){
-    sample_idx <- sample(1:nrow(train), nrow(train)/3)
+    sample_idx <- sample(1:nrow(train), nrow(train))
     #loop through each training case and perform update
     for (s in sample_idx){
       #cat("mu:", mu, "\n")
