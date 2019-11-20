@@ -84,22 +84,6 @@ l_list <- seq(-3,-1,1)
 f_l <- expand.grid(f_list, l_list)
 ```
 
-```{r}
-source("../lib/Matrix_Factorization.R")
-n <- length(f_list)*length(l_list)
-result_mat <- matrix(NA, n,2)
-for (i in 1:n){
-  result <- gradesc(f = f_l[i,1], lambda =10^f_l[i,2],
-                  lrate = 0.01, max.iter = 50, stopping.deriv = 0.01,
-                  data = data_bins, train = data_train, test = data_test)
-  result_mat[i,1] <- min(result$train_RMSE)
-  result_mat[i,2] <- min(result$test_RMSE)
-  cat("iter: ", i," test: ",result_mat[i,], "\n")
-}
-result_mat <- as.data.frame(result_mat)
-results <- cbind(result_mat, f_l)
-```
-
 ```{r, eval=FALSE}
 result_summary <- array(NA, dim = c(4, 10, nrow(f_l))) 
 run_time <- system.time(for(i in 1:nrow(f_l)){
