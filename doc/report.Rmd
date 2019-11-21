@@ -368,6 +368,7 @@ y_pred = reg.predict(X)
 
 ```
 
+Our estimated linear regression function is $r_{ij} = -0.000871* p_i^Tq_j-0.000117*b_u+0.902*b_i+0.0205*b_{i,Bin(t)}+0.717*KNN$
 ```{python, eval=FALSE}
 # compute MSE
 mse = (((y_pred - np.array(y_flat_time ))**2).sum()) / len(y_flat_time)
