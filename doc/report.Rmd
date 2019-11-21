@@ -158,8 +158,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from itertools import chain
 import math
-import nbconvert
-
+import time
 ```
 
 ```{python, eval=FALSE}
@@ -356,22 +355,41 @@ X = pd.concat([inter_df, b_user_df, b_movie_df, b_bin_df, knn_df], axis = 1, sor
 
 ```
 
+Now we will split the data into testing and trainning data, with $20%$ of the data being testing data.
+
 ```{python, eval=FALSE}
-# fit linear regression
-reg = LinearRegression().fit(X,y_flat_time)
-
-# get parameters of the linear regression
-reg.get_params(deep = True)
-
-# make predictions
-y_pred = reg.predict(X)
+# train test split
+X_train, X_test, y_train, y_test = train_test_split(X, y_flat_time, test_size=0.2, random_state=42)
 
 ```
 
+
+```{python, eval=FALSE}
+# fit linear regression
+start = time.time()
+reg = LinearRegression().fit(X_train,y_train)
+end = time.time()
+
+# calculate training time 
+model_train_tm = end-start
+print('model training took: {}'.format(model_train_tm))
+```
+
+The training job takes around $2420.9919040203094$ seconds.
+
+```{python, eval=FALSE}
+# get parameters of the linear regression
+reg.coef_
+
+# make predictions
+y_pred = reg.predict(X_test)
+```
+
 Our estimated linear regression function is $r_{ij} = -0.000871* p_i^Tq_j-0.000117*b_u+0.902*b_i+0.0205*b_{i,Bin(t)}+0.717*KNN$
+
 ```{python, eval=FALSE}
 # compute MSE
-mse = (((y_pred - np.array(y_flat_time ))**2).sum()) / len(y_flat_time)
+mse = (((y_pred - np.array(y_test))**2).sum()) / len(y_test)
 
 # compute RMSE
 RMSE = math.sqrt(mse)
