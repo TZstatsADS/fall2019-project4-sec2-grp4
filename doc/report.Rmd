@@ -401,4 +401,11 @@ In the end, we got $RMSE$ of $0.701$, which is a huge improvement from the one w
 ### Step 4 Evaluation
 You should visualize training and testing RMSE by different dimension of factors and epochs ([One Epoch is when an ENTIRE dataset is passed forward and backward through the neural network only ONCE](https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9)). 
 
+### Step 5: Future Work
+
+In the dataset, we noticed that some users do not rate many movies, and some movies do not have enough rating. This might cause some problem, as when we split time into 30 bins, some users and movies will not have enough appearance, thus making our prediction on these observations less accurate. This might further influence our prediction on other observations. 
+
+To address this issue, we should subset the original data, to include movies and users that has at least a certain amount of appearances. Considering our target of prediction, which is recommendation based on rating prediction, it’s reasonable not to include movies with rare appearance, and users with very few rating records shouldn’t be our focus as well. By using the data after subset, we should have a more reasonable prediction.
+
+Also, when sampling train and test data, we also need to make sure that, all bins are being sampled, and so does movies and users. It is inevitable for users and movies which have less record to be evaluated less accurately, but we need to mitigate this issue.
 
