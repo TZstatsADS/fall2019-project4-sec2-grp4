@@ -398,8 +398,215 @@ RMSE
 
 In the end, we got $RMSE$ of $0.701$, which is a huge improvement from the one without the post-processing.
 
+#### Postprocessing SVD with Kernel Ridge Regression
+
+```{python, eval=FALSE}
+# import neccessary library
+import time as time
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from google.colab import drive
+from sklearn.model_selection import GridSearchCV
+from sklearn.kernel_ridge import KernelRidge
+from sklearn.preprocessing import normalize
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
+```
+
+```{python, eval=FALSE}
+p = pd.read_csv('https://raw.githubusercontent.com/TZstatsADS/fall2019-project4-sec2-grp4/master/output/p.csv?token=ANFEHIYZQBNDJYCI5LZVVOC53TRC4')
+q = pd.read_csv('https://raw.githubusercontent.com/TZstatsADS/fall2019-project4-sec2-grp4/master/output/q.csv?token=ANFEHIZ4XNEHIVHIBUWZZE253OEC2')
+rating = pd.read_csv('https://raw.githubusercontent.com/TZstatsADS/fall2019-project4-sec2-grp4/master/data/ml-latest-small/ratings.csv?token=ANFEHI6OTIDZYNVKN4YXMES53OHN4')
+b_bin = pd.read_csv('https://raw.githubusercontent.com/TZstatsADS/fall2019-project4-sec2-grp4/master/output/b_bin.csv?token=ANFEHI2IAUZMRP55ZXDKB5C5357EI')
+mu = pd.read_csv('https://raw.githubusercontent.com/TZstatsADS/fall2019-project4-sec2-grp4/master/output/mu.csv?token=ANFEHI6TI46D3AIEQXCFLMK5357GU')
+b_movie = pd.read_csv('https://raw.githubusercontent.com/TZstatsADS/fall2019-project4-sec2-grp4/master/output/b_movie.csv?token=ANFEHIZ5VLCO2XYBEOOY4LK5357KA')
+b_user = pd.read_csv('https://raw.githubusercontent.com/TZstatsADS/fall2019-project4-sec2-grp4/master/output/b_user.csv?token=ANFEHI6JR3UB7ZHQQKKD6TK5357MW')
+q.drop(['Unnamed: 0'], axis = 1, inplace = True)
+q.index = range(1, 11)
+rating.index = range(1,100837)
+#import dataset
+```
+
+```{python, eval=FALSE}
+q_transpose = q.T
+q_transpose_normalized = q_transpose / np.linalg.norm(q_transpose, axis = 1, keepdims = True)
+#transpose and normalize q matrix
+q_transpose_normalized.reset_index(inplace = True)
+#preparing for later-on dataset merge
+q_transpose_normalized.rename(columns = {"index": "movieId"}, inplace = True)
+#rename from "index" to "movieId"
+```
+
+In this step, we normalize each $q_i$, that is $X_i=\frac{q_i}{||q_i||}$.
+
+```{python, eval=FALSE}
+rating['movieId'] = rating['movieId'].astype(int)
+#change movieId into integer
+q_transpose_normalized['movieId'] = q_transpose_normalized['movieId'].astype(int)
+#change movieId into integer
+```
+
+```{python, eval=FALSE}
+rating_merge = pd.merge(rating, q_transpose_normalized, on = 'movieId', how = 'left')
+#merge 'rating' and 'q_transpose_normalized' datasets
+dict_of_users = {k: v for k, v in rating_merge.groupby('userId')}
+#separating all users into 610 cat
+dict_of_users.get(1)[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+#checking if user_1 is in the dictionary
+```
+By using dictionary, we are easier to access each userId.
+
+```{python, eval=FALSE}
+def RMSE(n_users, method):
+  vecList = list()
+  for i in range(1, n_users + 1):
+    X = dict_of_users.get(i)[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+    y = dict_of_users.get(i)[['rating']]
+    pred = KernelRidge(kernel = method).fit(X, y).predict(X)
+    sq_diff = np.square(np.array(pred) - np.array(y))
+    mean_sq_diff = sq_diff.mean()
+    root_mean_sq_diff = np.sqrt(mean_sq_diff)
+    vecList.append(root_mean_sq_diff)
+  return vecList
+#for iteration return RMSE
+```
+
+```{python, eval=FALSE}
+def List_Sum_Function(list, length): 
+   if (length == 0): 
+     return 0
+   else: 
+     return list[length - 1] + List_Sum_Function(list, length - 1)
+#define function of sum of list values
+```
+
+```{python, eval=FALSE}
+## Train kernel ridge ##
+train, test = train_test_split(rating_merge, test_size = 0.2)
+#spliting dataset 20% test 80% train
+dict_of_users_train = {k: v for k, v in train.groupby('userId')}
+#separating all users into 610 cat
+dict_of_users_test = {k: v for k, v in test.groupby('userId')}
+#separating all users into 610 cat
+
+dict_of_users_train.get(1)[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+#checking if user_1 is in the train dictionary
+dict_of_users_test.get(1)[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+#checking if user_1 is in the test dictionary
+```
+
+We split the dataset with 80% training and 20% testing.
+
+```{python, eval=FALSE}
+def RMSE_train(n_users, kernel, alpha, gamma, degree):
+  vector_train = list()
+  for m in range(1, n_users + 1):
+    X_train = dict_of_users_train.get(m)[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+    y_train = dict_of_users_train.get(m)[['rating']]
+    pred = KernelRidge(alpha = alpha, gamma = gamma, degree = degree, kernel = kernel).fit(X_train, y_train).predict(X_train)
+    sq_diff = np.square(np.array(pred) - np.array(y_train))
+    mean_sq_diff = sq_diff.mean()
+    root_mean_sq_diff = np.sqrt(mean_sq_diff)
+    vector_train.append(root_mean_sq_diff)
+  return vector_train
+#define RMSE train function
+
+def RMSE_test(n_users, kernel, alpha, gamma, degree):
+  vector_test = list()
+  for m in range(1, n_users + 1):
+    X_train = dict_of_users_train.get(m)[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+    y_train = dict_of_users_train.get(m)[['rating']]
+    X_test = dict_of_users.get(m)[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+    y_test = dict_of_users.get(m)[['rating']]
+    pred = KernelRidge(alpha = alpha, gamma = gamma, degree = degree, kernel = kernel).fit(X_train, y_train).predict(X_test)
+    sq_diff = np.square(np.array(pred) - np.array(y_test))
+    mean_sq_diff = sq_diff.mean()
+    root_mean_sq_diff = np.sqrt(mean_sq_diff)
+    vector_test.append(root_mean_sq_diff)
+  return vector_test
+#define RMSE test function
+```
+
+```{python, eval=FALSE}
+## Kernel Ridge Tuning Parameters ##
+KernelList = ["rbf", "polynomial", "laplacian", "linear", "sigmoid"]
+GammaList = [0.00001, 0.0001, 0.01]
+AlphaList = [0.00001, 0.0001, 0.01]
+
+vecList2_train = list()
+vecList2_test = list()
+for i in KernelList:
+  for j in GammaList:
+    for k in AlphaList:
+        RMSE_total_train = List_Sum_Function(RMSE_train(610, kernel = i, alpha = k, gamma = j, degree = 3), len(RMSE_train(610, kernel = i, alpha = k, gamma = j, degree = 3)))
+        RMSE_total_test = List_Sum_Function(RMSE_test(610, kernel = i, alpha = k, gamma = j, degree = 3), len(RMSE_test(610, kernel = i, alpha = k, gamma = j, degree = 3)))
+        vecList2_train.append(RMSE_total_train)
+        vecList2_test.append(RMSE_total_test)      
+#finding out the best parameters for both training and testing datasets
+#laplacian mechanism with gamma = 0.01 and alpha = 0.0001 is the optimal parameters for our kernel ridge model
+```
+
+By comparing performance among "rbf", "polynomial", "laplacian", "linear", "sigmoid" kernels, alpha ranging from 0.00001 to 0.01 and gamma ranging from 0.00001 to 0.01, we decide to use laplacian mechanism with gamma = 0.01 and alpha = 0.0001. While in general, "linear" kernels have the worst performance and "sigmoid" does not have stable RMSE.
+
+```{python, eval=FALSE}
+## Train Kernel Ridge Final Model ##
+def train_model(datasets, n_users, kernel, alpha, gamma, degree):
+  vecList_train = list()
+  for i in range(1, n_users + 1):
+    X = datasets.get(i)[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+    y = datasets.get(i)[['rating']]
+    X_overall = q_transpose_normalized[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+    pred = KernelRidge(alpha = alpha, gamma = gamma, degree = degree, kernel = kernel).fit(X, y).predict(X_overall)
+    vecList_train.append(pred)
+  return vecList_train
+
+t0 = time.time()
+train_model(dict_of_users_train, 610, kernel = 'laplacian', alpha = 0.0001, gamma = 0.01, degree = 3)
+training_time = time.time() - t0
+training_time
+#training time = 45.278982400894165s
+```
+
+The training time is 45.278982400894165s.
+
+```{python, eval=FALSE}
+def RMSE_aggregate(datasets):
+  vecList_agg = list()
+  for i in range(1, 610 + 1):
+    X = datasets.get(i)[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+    y = datasets.get(i)[['rating']]
+    X_overall = dict_of_users.get(i)[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]
+    y_overall = dict_of_users.get(i)[['rating']]
+    pred = KernelRidge(alpha = 0.0001, gamma = 0.01, degree = 3, kernel = 'laplacian').fit(X, y).predict(X_overall)
+    sq_diff = np.square(np.array(pred) - np.array(y_overall))
+    sq_diff_sum = np.sum(sq_diff)
+    vecList_agg.append(sq_diff_sum)
+  return vecList_agg
+
+np.sqrt(List_Sum_Function(RMSE_aggregate(dict_of_users), len(RMSE_aggregate(dict_of_users)))/610)
+#check the total RMSE of KRR
+```
+
+The RMSE of Kernel Ridge Regression is 0.7806703963573395.
+
+```{python, eval=FALSE}
+np.shape(train_model(dict_of_users_train, 610, kernel = 'laplacian', alpha = 0.0001, gamma = 0.01, degree = 3))
+train_model(dict_of_users_train, 610, kernel = 'laplacian', alpha = 0.0001, gamma = 0.01, degree = 3)
+#check dimension of the final recommender system which is 610 * 9724
+```
+
+Finally, we output the recommendation system (estimated ratings for each user and each movie) which is a 610 * 9724 dimension matrix.  
+
 ### Step 4 Evaluation
-You should visualize training and testing RMSE by different dimension of factors and epochs ([One Epoch is when an ENTIRE dataset is passed forward and backward through the neural network only ONCE](https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9)). 
+
+![](../figs/RMSE.png)
+
+![](../figs/knn.png)
+
+The post-processing KNN decreases the RMSE from 1.062 to 0.7007 which is better than the performance of Kernel Ridge Regression which has RMSE 0.78067. 
+
+The training time for KNN when fitting linear regression is around 40 minutes and which for training kernel ridge is 45.279 seconds.
 
 ### Step 5: Future Work
 
